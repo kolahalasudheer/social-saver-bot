@@ -1,8 +1,6 @@
 import { extractInstagramMetadata } from "./apify.service.js";
 
-/* -------------------------
-   BUSINESS VALIDATION
-------------------------- */
+
 function validateBusinessRules(metadata) {
   if (!metadata.caption || metadata.caption.length < 5) {
     throw new Error("Caption is too short or missing");
@@ -15,9 +13,7 @@ function validateBusinessRules(metadata) {
   return true;
 }
 
-/* -------------------------
-   MAIN BUSINESS FUNCTION
-------------------------- */
+
 export async function processReelExtraction(reelUrl) {
   try {
     const metadata = await extractInstagramMetadata(reelUrl);

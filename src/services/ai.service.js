@@ -2,39 +2,62 @@
 import aiClient from '../config/ai.js';
 
 class AIService {
-  static async analyzeCaption(caption) {
-    try {
-      const model = aiClient.getGenerativeModel({ model: 'gemini-flash-latest' });
 
-      const result = await model.generateContent(`
-You are an AI that analyzes Instagram captions.
+  static async analyzeReel({ caption, hashtags }) {
+    try {
+      const model = aiClient.getGenerativeModel({
+        model: 'gemini-flash-latest'
+      });
+
+      const prompt = `
+You are a strict Instagram reel analyzer.
+
+CAPTION:
+${caption}
+
+HASHTAGS:
+${JSON.stringify(hashtags)}
+
 Return ONLY valid JSON.
 
-Caption: ${caption}
+Use this exact structure:
 
-Return JSON with:
-- summary (string)
-- categories (array of objects with label and confidence between 0 and 1)
-- inferred_intent (string)
-      `);
+{
+  "summary": "Max 2 concise sentences",
+  "category": "One of: Education, Entertainment, Fitness, Tech, Motivation, Business, Lifestyle, Other",
+  "intent": "One of: Educational, Promotional, Informational, Personal, Entertainment"
+}
 
-      const response = await result.response;
-      const text = await response.text();
+Do not include markdown formatting.
+Do not include explanation.
+Only return JSON.
+`;
 
-      return JSON.parse(text);
-    } catch (error) {
-      throw new Error(`AI analysis failed: ${error.message}`);
-    }
-  }
-
-  static async generateContent(prompt) {
-    try {
-      const model = aiClient.getGenerativeModel({ model: 'gemini-flash-latest' });
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      return await response.text();
+      let text = await response.text();
+
+      // 🔥 Clean markdown if Gemini wraps output
+      text = text
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      const parsed = JSON.parse(text);
+
+      // 🔐 Validate structure
+      if (!parsed.summary || !parsed.category || !parsed.intent) {
+        throw new Error("Invalid AI response structure");
+      }
+
+      return {
+        summary: parsed.summary,
+        category: parsed.category,
+        intent: parsed.intent
+      };
+
     } catch (error) {
-      throw new Error(`Content generation failed: ${error.message}`);
+      throw new Error(`AI analysis failed: ${error.message}`);
     }
   }
 }

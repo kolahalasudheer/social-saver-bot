@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f0f0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>ReelSave — Your Instagram Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+
+<body>
+
+  <!-- ===== SIDEBAR OVERLAY ===== -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <span class="sidebar-logo-icon">🎬</span>
+        <span class="sidebar-logo-text">ReelSave</span>
+      </div>
+      <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+    </div>
+
+    <!-- User Profile -->
+    <div class="sidebar-profile">
+      <div class="profile-avatar" id="sidebarAvatar">U</div>
+      <div class="profile-info">
+        <div class="profile-name">My Account</div>
+        <div class="profile-phone" id="sidebarPhone">WhatsApp User</div>
+      </div>
+      <div class="profile-online"></div>
+    </div>
+
+    <!-- Library -->
+    <div class="sidebar-section-label">LIBRARY</div>
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item active" href="#" onclick="setSidebarFilter('all'); return false;">
+        <span class="sidebar-nav-icon">⊞</span>
+        <span class="sidebar-nav-text">All Saves</span>
+        <span class="sidebar-nav-count" id="sidebarAllCount">0</span>
+      </a>
+      <a class="sidebar-nav-item" href="#" onclick="setSidebarSort('newest'); return false;">
+        <span class="sidebar-nav-icon">⏰</span>
+        <span class="sidebar-nav-text">Recent</span>
+      </a>
+      <a class="sidebar-nav-item" href="#" onclick="setSidebarFilter('random'); return false;">
+        <span class="sidebar-nav-icon">🎲</span>
+        <span class="sidebar-nav-text">Random Pick</span>
+      </a>
+    </nav>
+
+    <!-- Buckets -->
+    <div class="sidebar-section-label">BUCKETS</div>
+    <nav class="sidebar-nav" id="sidebarBuckets">
+      <!-- dynamically filled -->
+    </nav>
+
+    <!-- Account -->
+    <div class="sidebar-section-label">ACCOUNT</div>
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item" href="#">
+        <span class="sidebar-nav-icon">👤</span>
+        <span class="sidebar-nav-text">Profile</span>
+      </a>
+      <a class="sidebar-nav-item" href="#">
+        <span class="sidebar-nav-icon">⚙️</span>
+        <span class="sidebar-nav-text">Settings</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ===== MAIN APP ===== -->
+  <div class="app-shell">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-inner">
+        <button class="hamburger" onclick="openSidebar()" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="logo">
+          <span class="logo-icon">🎬</span>
+          <span class="logo-text">ReelSave</span>
+        </div>
+        <div class="header-right">
+          <button class="header-icon-btn" aria-label="Notifications">🔔</button>
+          <div class="header-avatar" id="headerAvatar">R</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="search-wrap">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search reels, captions, usernames..." />
+      </div>
+    </div>
+
+    <!-- WhatsApp LIVE Banner -->
+    <div class="wa-banner">
+      <div class="wa-banner-left">
+        <div class="wa-icon">💬</div>
+        <div>
+          <div class="wa-title">WhatsApp Bot Active</div>
+          <div class="wa-sub">Send any Instagram reel link to save it instantly.</div>
+        </div>
+      </div>
+      <span class="wa-live"><span class="live-dot"></span>LIVE</span>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-label">TOTAL SAVES</div>
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-sub" id="statWeek">this week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">TOP BUCKET</div>
+        <div class="stat-value" id="statTopCat">—</div>
+        <div class="stat-sub" id="statTopCount">saves</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">COMPLETED</div>
+        <div class="stat-value" id="statDone">—</div>
+        <div class="stat-sub">fully analysed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">CATEGORIES</div>
+        <div class="stat-value" id="statCats">—</div>
+        <div class="stat-sub">buckets</div>
+      </div>
+    </div>
+
+    <!-- Section Header -->
+    <div class="section-header">
+      <h2 class="section-title">All Saves</h2>
+      <button class="sort-btn" id="sortBtn" onclick="toggleSort()">Sort: Latest ↓</button>
+    </div>
+
+    <!-- Category Filter Pills -->
+    <div class="filter-bar">
+      <div class="filter-scroll" id="filterScroll">
+        <button class="filter-btn active" data-cat="all">All <span class="filter-count" id="fc-all">0</span></button>
+        <button class="filter-btn" data-cat="Education">📚 Education</button>
+        <button class="filter-btn" data-cat="Tech">💻 Tech</button>
+        <button class="filter-btn" data-cat="Fitness">💪 Fitness</button>
+        <button class="filter-btn" data-cat="Motivation">🔥 Motivation</button>
+        <button class="filter-btn" data-cat="Business">💼 Business</button>
+        <button class="filter-btn" data-cat="Entertainment">🎭 Entertainment</button>
+        <button class="filter-btn" data-cat="Lifestyle">✨ Lifestyle</button>
+        <button class="filter-btn" data-cat="Other">🌀 Other</button>
+      </div>
+    </div>
+
+    <!-- Day-wise Date Filter Bar -->
+    <div class="date-filter-bar">
+      <div class="date-filter-scroll">
+        <button class="date-btn active" data-date="all">📅 All Time</button>
+        <button class="date-btn" data-date="today">Today</button>
+        <button class="date-btn" data-date="yesterday">Yesterday</button>
+        <button class="date-btn" data-date="week">This Week</button>
+        <button class="date-btn" data-date="month">This Month</button>
+      </div>
+    </div>
+
+    <!-- Scrollable content area -->
+    <div class="content-scroll">
+      <main class="feed" id="feed">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </main>
+
+      <!-- Empty State -->
+      <div class="empty-state hidden" id="emptyState">
+        <div class="empty-icon">📭</div>
+        <h3 class="empty-title">No reels found</h3>
+        <p class="empty-sub">Send an Instagram reel link on WhatsApp to save it here.</p>
+      </div>
+
+      <!-- Error State -->
+      <div class="error-state hidden" id="errorState">
+        <div class="empty-icon">⚠️</div>
+        <h3 class="empty-title">Couldn't load reels</h3>
+        <p class="empty-sub">Make sure the server is running and refresh.</p>
+        <button class="retry-btn" onclick="loadReels()">Retry</button>
+      </div>
+    </div><!-- end content-scroll -->
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <a class="nav-item active" href="#" onclick="setSidebarFilter('all'); return false;">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Home</span>
+      </a>
+      <a class="nav-item" href="#" onclick="applyCategory('Education'); return false;">
+        <span class="nav-icon">📚</span>
+        <span class="nav-label">Education</span>
+      </a>
+      <a class="nav-item" href="#" onclick="applyCategory('Tech'); return false;">
+        <span class="nav-icon">💻</span>
+        <span class="nav-label">Tech</span>
+      </a>
+      <a class="nav-item" href="#" onclick="openSidebar(); return false;">
+        <span class="nav-icon">☰</span>
+        <span class="nav-label">Menu</span>
+      </a>
+    </nav>
+
+  </div><!-- end app-shell -->
+
+  <script src="app.js"></script>
+</body>
+
+</html>

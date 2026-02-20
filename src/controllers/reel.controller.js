@@ -1,11 +1,10 @@
 // Reel controller (ESM)
 import asyncHandler from '../middleware/asyncHandler.js';
-import * as ReelServiceModule from '../services/reel.service.js';
-const ReelService = ReelServiceModule.ReelService || ReelServiceModule.default || ReelServiceModule;
+import { getAllReels } from '../services/reel.repository.js';
 
-export const getAllReels = asyncHandler(async (req, res) => {
-  // TODO: Implement get all reels
-  res.json({ data: [] });
+export const getReels = asyncHandler(async (req, res) => {
+  const reels = await getAllReels();
+  res.json({ success: true, count: reels.length, data: reels });
 });
 
 export const getReelById = asyncHandler(async (req, res) => {

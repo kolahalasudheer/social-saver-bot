@@ -1,7 +1,7 @@
 // Reel routes (ESM)
 import express from 'express';
 import {
-	getAllReels,
+	getReels,
 	getReelById,
 	createReel,
 	updateReel,
@@ -10,10 +10,10 @@ import {
 
 const router = express.Router();
 
-router.get('/reels', getAllReels);
-router.get('/reels/:id', getReelById);
-router.post('/reels', createReel);
-router.put('/reels/:id', updateReel);
-router.delete('/reels/:id', deleteReel);
+router.get('/', getReels);
+router.get('/:id', getReelById);
+router.post('/', createReel);
+router.put('/:id', updateReel);
+router.delete('/:id', deleteReel);
 
 export default router;

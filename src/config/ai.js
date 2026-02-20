@@ -1,6 +1,16 @@
-// AI/Gemini configuration (ESM)
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import dotenv from "dotenv";
+dotenv.config();
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export default genAI;
+const apiKey = process.env.GEMINI_API_KEY;
+
+if (!apiKey) {
+  throw new Error("GEMINI_API_KEY is missing in environment variables");
+}
+
+console.log("Gemini Key Loaded:", apiKey ? "YES" : "NO");
+
+const aiClient = new GoogleGenerativeAI(apiKey);
+
+export default aiClient;

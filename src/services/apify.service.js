@@ -3,10 +3,6 @@ dotenv.config();
 
 import axios from "axios";
 
-/* -------------------------
-   CONFIG
-------------------------- */
-
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 const ACTOR_ID = "apify~instagram-scraper";
 
@@ -14,45 +10,34 @@ if (!APIFY_TOKEN) {
   console.warn("⚠️  APIFY_API_TOKEN is missing. Add it to .env to use Apify extraction features");
 }
 
-/* -------------------------
-   URL VALIDATION
-------------------------- */
-
+// url validation regex (this will conver a long url to short and simple one)
 function validateReelUrl(url) {
   const pattern =
     /^https:\/\/(www\.)?instagram\.com\/(reel|p)\/[A-Za-z0-9_-]+/;
   return pattern.test(url);
 }
 
-/* -------------------------
-   SHORTCODE EXTRACTION
-------------------------- */
 
+// it will generate the a unique shortcode for the reel which will be used as a key in the database and also in the dashboard to identify the reel
 function extractShortcode(url) {
   const match = url.match(/\/(reel|p)\/([A-Za-z0-9_-]+)/);
   return match ? match[2] : null;
 }
 
-/* -------------------------
-   CAPTION NORMALIZATION
-------------------------- */
+
 
 function normalizeCaption(text = "") {
   return text.trim().replace(/\s+/g, " ");
 }
 
-/* -------------------------
-   HASHTAG EXTRACTION (Unicode Safe)
-------------------------- */
+
 
 function extractHashtags(text = "") {
   const matches = text.match(/#[\p{L}\p{N}_]+/gu) || [];
   return [...new Set(matches)];
 }
 
-/* -------------------------
-   MAIN EXTRACTION FUNCTION
-------------------------- */
+
 
 export async function extractInstagramMetadata(reelUrl) {
   if (!APIFY_TOKEN) {
