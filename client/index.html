@@ -46,6 +46,11 @@
         <span class="sidebar-nav-text">All Saves</span>
         <span class="sidebar-nav-count" id="sidebarAllCount">0</span>
       </a>
+      <a class="sidebar-nav-item" href="#" onclick="setSidebarFilter('starred'); return false;" data-cat="starred">
+        <span class="sidebar-nav-icon">⭐</span>
+        <span class="sidebar-nav-text">Starred</span>
+        <span class="sidebar-nav-count" id="sidebarStarredCount">0</span>
+      </a>
       <a class="sidebar-nav-item" href="#" onclick="setSidebarSort('newest'); return false;">
         <span class="sidebar-nav-icon">⏰</span>
         <span class="sidebar-nav-text">Recent</span>
@@ -140,35 +145,64 @@
       </div>
     </div>
 
-    <!-- Section Header -->
+    <!-- Section Header w/ Filter & Sort -->
     <div class="section-header">
       <h2 class="section-title">All Saves</h2>
-      <button class="sort-btn" id="sortBtn" onclick="toggleSort()">Sort: Latest ↓</button>
-    </div>
-
-    <!-- Category Filter Pills -->
-    <div class="filter-bar">
-      <div class="filter-scroll" id="filterScroll">
-        <button class="filter-btn active" data-cat="all">All <span class="filter-count" id="fc-all">0</span></button>
-        <button class="filter-btn" data-cat="Education">📚 Education</button>
-        <button class="filter-btn" data-cat="Tech">💻 Tech</button>
-        <button class="filter-btn" data-cat="Fitness">💪 Fitness</button>
-        <button class="filter-btn" data-cat="Motivation">🔥 Motivation</button>
-        <button class="filter-btn" data-cat="Business">💼 Business</button>
-        <button class="filter-btn" data-cat="Entertainment">🎭 Entertainment</button>
-        <button class="filter-btn" data-cat="Lifestyle">✨ Lifestyle</button>
-        <button class="filter-btn" data-cat="Other">🌀 Other</button>
+      <div class="section-controls">
+        <button class="control-btn" id="filterToggleBtn" onclick="toggleFilterDropdown()">
+          <span>⚙️ Filter</span>
+          <span class="active-dot hidden" id="filterActiveDot"></span>
+        </button>
+        <button class="control-btn" id="sortBtn" onclick="toggleSort()">Sort: Latest ↓</button>
       </div>
     </div>
 
-    <!-- Day-wise Date Filter Bar -->
-    <div class="date-filter-bar">
-      <div class="date-filter-scroll">
-        <button class="date-btn active" data-date="all">📅 All Time</button>
-        <button class="date-btn" data-date="today">Today</button>
-        <button class="date-btn" data-date="yesterday">Yesterday</button>
-        <button class="date-btn" data-date="week">This Week</button>
-        <button class="date-btn" data-date="month">This Month</button>
+    <!-- Unified Filter Dropdown Panel -->
+    <div class="filter-dropdown-wrap">
+      <div class="filter-panel hidden" id="filterPanel">
+        <div class="filter-section">
+          <div class="filter-section-title">By Category</div>
+          <div class="filter-grid">
+            <button class="f-pill active" data-cat="all">All</button>
+            <button class="f-pill" data-cat="Education">📚 Education</button>
+            <button class="f-pill" data-cat="Tech">💻 Tech</button>
+            <button class="f-pill" data-cat="Fitness">💪 Fitness</button>
+            <button class="f-pill" data-cat="Motivation">🔥 Motivation</button>
+            <button class="f-pill" data-cat="Business">💼 Business</button>
+            <button class="f-pill" data-cat="Entertainment">🎭 Entertainment</button>
+            <button class="f-pill" data-cat="Lifestyle">✨ Lifestyle</button>
+            <button class="f-pill" data-cat="Other">🌀 Other</button>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-section-title">By Intent</div>
+          <div class="filter-grid">
+            <button class="i-pill active" data-intent="all">Any Intent</button>
+            <button class="i-pill" data-intent="educational">📖 Educational</button>
+            <button class="i-pill" data-intent="promotional">💰 Promotional</button>
+            <button class="i-pill" data-intent="informational">💡 Informational</button>
+            <button class="i-pill" data-intent="entertainment">🎭 Entertainment</button>
+            <button class="i-pill" data-intent="inspirational">🔥 Inspirational</button>
+            <button class="i-pill" data-intent="satirical/parody">🤡 Satire/Parody</button>
+            <button class="i-pill" data-intent="personal">👤 Personal</button>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <div class="filter-section-title">By Time</div>
+          <div class="filter-grid">
+            <button class="d-pill active" data-date="all">📅 All Time</button>
+            <button class="d-pill" data-date="today">Today</button>
+            <button class="d-pill" data-date="yesterday">Yesterday</button>
+            <button class="d-pill" data-date="week">This Week</button>
+            <button class="d-pill" data-date="month">This Month</button>
+          </div>
+        </div>
+
+        <div class="filter-footer">
+          <button class="clear-filters-btn" onclick="clearAllFilters()">Clear All Filters</button>
+        </div>
       </div>
     </div>
 
@@ -196,25 +230,70 @@
       </div>
     </div><!-- end content-scroll -->
 
-    <!-- Bottom Nav -->
-    <nav class="bottom-nav">
-      <a class="nav-item active" href="#" onclick="setSidebarFilter('all'); return false;">
-        <span class="nav-icon">🏠</span>
-        <span class="nav-label">Home</span>
-      </a>
-      <a class="nav-item" href="#" onclick="applyCategory('Education'); return false;">
-        <span class="nav-icon">📚</span>
-        <span class="nav-label">Education</span>
-      </a>
-      <a class="nav-item" href="#" onclick="applyCategory('Tech'); return false;">
-        <span class="nav-icon">💻</span>
-        <span class="nav-label">Tech</span>
-      </a>
-      <a class="nav-item" href="#" onclick="openSidebar(); return false;">
-        <span class="nav-icon">☰</span>
-        <span class="nav-label">Menu</span>
-      </a>
-    </nav>
+
+
+    <!-- Reel Details Modal -->
+    <div class="reel-modal-overlay" id="reelModalOverlay" onclick="closeReelModal()">
+      <div class="reel-modal" id="reelModal" onclick="event.stopPropagation()">
+
+        <div class="rm-header">
+          <div class="rm-creator" id="rmCreator">@username</div>
+          <button class="rm-close" onclick="closeReelModal()">✕</button>
+        </div>
+
+        <div class="rm-content">
+          <div class="rm-hero">
+            <img src="" alt="Thumbnail" id="rmThumbnail" referrerpolicy="no-referrer"
+              onerror="this.style.display='none'" />
+            <div class="rm-hero-overlay">
+              <span class="rm-play-icon">▶</span>
+            </div>
+          </div>
+
+          <div class="rm-body">
+            <div class="rm-section">
+              <span class="rm-label">AI INSIGHT</span>
+              <div class="rm-insight-card">
+                <h3 class="rm-title" id="rmTitle">AI Summary goes here</h3>
+              </div>
+            </div>
+
+            <div class="rm-section">
+              <span class="rm-label">CATEGORIES & INTENT</span>
+              <div class="rm-badges" id="rmBadges">
+                <!-- Injected Badges -->
+              </div>
+            </div>
+
+            <div class="rm-section">
+              <span class="rm-label">ORIGINAL CAPTION</span>
+              <div class="rm-caption" id="rmCaption">Original caption goes here...</div>
+            </div>
+
+            <div class="rm-section">
+              <span class="rm-label">TOPICS</span>
+              <div class="rm-tags" id="rmTags">
+                <!-- Injected Tags -->
+              </div>
+            </div>
+
+            <div class="rm-section rm-reminder-section">
+              <span class="rm-label">SET REMINDER 🔔</span>
+              <div class="rm-reminder-flex">
+                <input type="datetime-local" id="rmReminderInput" class="rm-reminder-input" />
+                <button class="rm-reminder-btn" id="rmSetReminderBtn">Notify Me</button>
+              </div>
+              <div id="rmReminderStatus" class="rm-reminder-status hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rm-footer">
+          <button class="rm-cta" id="rmCtaBtn">Watch on Instagram</button>
+        </div>
+
+      </div>
+    </div>
 
   </div><!-- end app-shell -->
 

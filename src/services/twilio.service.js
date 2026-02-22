@@ -20,14 +20,17 @@ function getTwilioClient() {
 }
 
 /**
- * Send WhatsApp message
+ * Send WhatsApp message (Supports Text, Media, and Content Templates)
  * @param {Object} params
  * @param {string} params.to - Recipient phone number (without whatsapp:)
- * @param {string} params.body - Message body
+ * @param {string} params.body - Message body (optional if contentSid is used)
+ * @param {string} [params.mediaUrl] - Optional URL to an image/video
+ * @param {string} [params.contentSid] - Optional Twilio Content SID for interactive buttons/lists
+ * @param {Object} [params.contentVariables] - Optional variables for the content template
  */
-async function sendWhatsAppMessage({ to, body }) {
-  if (!to || !body) {
-    throw new Error("Both 'to' and 'body' are required.");
+async function sendWhatsAppMessage({ to, body, mediaUrl, contentSid, contentVariables }) {
+  if (!to || (!body && !contentSid)) {
+    throw new Error("Phone number and either 'body' or 'contentSid' are required.");
   }
 
   const { TWILIO_WHATSAPP_NUMBER } = process.env;
@@ -36,12 +39,22 @@ async function sendWhatsAppMessage({ to, body }) {
     : `whatsapp:${to}`;
 
   const client = getTwilioClient();
-  const message = await client.messages.create({
+
+  const messageOptions = {
     from: TWILIO_WHATSAPP_NUMBER,
     to: formattedTo,
-    body,
-  });
+  };
 
+  if (body) messageOptions.body = body;
+  if (mediaUrl) messageOptions.mediaUrl = [mediaUrl];
+  if (contentSid) {
+    messageOptions.contentSid = contentSid;
+    if (contentVariables) {
+      messageOptions.contentVariables = JSON.stringify(contentVariables);
+    }
+  }
+
+  const message = await client.messages.create(messageOptions);
   return message;
 }
 

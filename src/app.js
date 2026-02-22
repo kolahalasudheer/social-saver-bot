@@ -1,6 +1,5 @@
 console.log("🔥 App.js loaded with webhook route");
 
-
 // Express app configuration (ESM)
 import express from 'express';
 import cors from 'cors';
@@ -10,7 +9,7 @@ import { fileURLToPath } from 'url';
 import errorHandler from './middleware/error.middleware.js';
 
 // Route imports
-import { webhookRoutes, reelRoutes, healthRoutes } from './routes/index.js';
+import { webhookRoutes, reelRoutes, healthRoutes, proxyRoutes } from './routes/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,7 +29,7 @@ app.use(express.static(path.join(__dirname, '../client')));
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/reels', reelRoutes);
 app.use('/api/health', healthRoutes);
-
+app.use('/api/proxy', proxyRoutes);
 
 // 404 handler
 app.use((req, res) => {

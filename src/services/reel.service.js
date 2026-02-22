@@ -39,15 +39,18 @@ export const saveReel = async (userPhone, url) => {
     // 5️⃣ Run AI enrichment
     console.log("Starting AI analysis...");
     const aiResult = await AIService.analyzeReel({
-    caption: metadata.caption,
-    hashtags: metadata.hashtags
-});
+      caption: metadata.caption,
+      hashtags: metadata.hashtags,
+      username: metadata.username,
+      fullName: metadata.full_name,
+      duration: metadata.duration_seconds
+    });
     console.log("AI Result:", aiResult);
 
     // 6️⃣  Update AI fields
     const finalReel = await updateReelAI(shortcode, aiResult);
     console.log("AI DB updated");
-    
+
     return finalReel;
 
   } catch (error) {

@@ -9,13 +9,17 @@
 
 /**
  * Returns { remindAt: Date, note: string|null } or null if no reminder found
+ * @param {string} message 
+ * @param {boolean} requireKeyword - If false, will try to parse even without "remind" keyword
  */
-export function parseReminderFromMessage(message) {
+export function parseReminderFromMessage(message, requireKeyword = true) {
   const text = message.toLowerCase().trim();
 
-  // Must contain a reminder keyword
-  const hasReminder = /remind|reminder|alert|notify|ping|set alarm/.test(text);
-  if (!hasReminder) return null;
+  // If keyword is required, check for it
+  if (requireKeyword) {
+    const hasReminder = /remind|reminder|alert|notify|ping|set alarm/.test(text);
+    if (!hasReminder) return null;
+  }
 
   const now = new Date();
   let remindAt = null;

@@ -6,6 +6,7 @@ const API_URL = '/api/reels';
 
 let allReels = [];
 let activeCategory = 'all';
+let activeIntentFilter = 'all';
 let activeDateFilter = 'all'; // 'all' | 'today' | 'yesterday' | 'week' | 'month'
 let searchQuery = '';
 let sortOrder = 'newest'; // 'newest' | 'oldest'
@@ -35,43 +36,83 @@ window.closeSidebar = function () {
     document.body.style.overflow = '';
 };
 
-window.setSidebarFilter = function (cat) {
-    closeSidebar();
-    activeCategory = cat === 'random' ? 'random' : cat;
-    updateFilterButtons(cat);
+// ─── Filter Dropdown Toggle ───────────────────────
+window.toggleFilterDropdown = function () {
+    const panel = document.getElementById('filterPanel');
+    panel.classList.toggle('hidden');
+};
+
+window.clearAllFilters = function () {
+    activeCategory = 'all';
+    activeIntentFilter = 'all';
+    activeDateFilter = 'all';
+
+    // Reset UI pills
+    document.querySelectorAll('.f-pill').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+    document.querySelectorAll('.i-pill').forEach(b => b.classList.toggle('active', b.dataset.intent === 'all'));
+    document.querySelectorAll('.d-pill').forEach(b => b.classList.toggle('active', b.dataset.date === 'all'));
+
+    updateSidebarActiveState('all');
+    updateFilterActiveDot();
     renderReels();
 };
 
-// ─── Sort ─────────────────────────────────────────
-window.toggleSort = function () {
-    sortOrder = sortOrder === 'newest' ? 'oldest' : 'newest';
-    document.getElementById('sortBtn').textContent =
-        sortOrder === 'newest' ? 'Sort: Latest ↓' : 'Sort: Oldest ↑';
-    renderReels();
-};
+// Update the red dot indicator if any filter is active
+function updateFilterActiveDot() {
+    const dot = document.getElementById('filterActiveDot');
+    if (activeCategory !== 'all' || activeIntentFilter !== 'all' || activeDateFilter !== 'all') {
+        dot.classList.remove('hidden');
+    } else {
+        dot.classList.add('hidden');
+    }
+}
 
-// ─── Category filter (pill) ───────────────────────
-window.applyCategory = function (cat) {
-    activeCategory = cat;
-    updateFilterButtons(cat);
-    renderReels();
-};
-
-document.querySelectorAll('.filter-btn').forEach(btn => {
+// ─── Filter logic (pills) ─────────────────────────
+// Category Pills
+document.querySelectorAll('.f-pill').forEach(btn => {
     btn.addEventListener('click', () => {
         activeCategory = btn.dataset.cat;
-        updateFilterButtons(activeCategory);
+        document.querySelectorAll('.f-pill').forEach(b => b.classList.toggle('active', b.dataset.cat === activeCategory));
+        updateSidebarActiveState(activeCategory);
+        updateFilterActiveDot();
         renderReels();
     });
 });
 
-// ─── Date filter buttons ──────────────────────────
-document.querySelectorAll('.date-btn').forEach(btn => {
+window.setSidebarFilter = function (cat) {
+    closeSidebar();
+    activeCategory = cat === 'random' ? 'random' : cat;
+    document.querySelectorAll('.f-pill').forEach(b => b.classList.toggle('active', b.dataset.cat === activeCategory));
+    updateSidebarActiveState(cat);
+    updateFilterActiveDot();
+    renderReels();
+};
+
+function updateSidebarActiveState(cat) {
+    document.querySelectorAll('.sidebar-nav-item').forEach(el => {
+        el.classList.remove('active');
+        if (el.dataset.cat === cat || (cat === 'all' && el.dataset.cat === undefined && el.textContent.includes('All Saves'))) {
+            el.classList.add('active');
+        }
+    });
+}
+
+// Intent Pills
+document.querySelectorAll('.i-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+        activeIntentFilter = btn.dataset.intent;
+        document.querySelectorAll('.i-pill').forEach(b => b.classList.toggle('active', b.dataset.intent === activeIntentFilter));
+        updateFilterActiveDot();
+        renderReels();
+    });
+});
+
+// Date Pills
+document.querySelectorAll('.d-pill').forEach(btn => {
     btn.addEventListener('click', () => {
         activeDateFilter = btn.dataset.date;
-        document.querySelectorAll('.date-btn').forEach(b =>
-            b.classList.toggle('active', b.dataset.date === activeDateFilter)
-        );
+        document.querySelectorAll('.d-pill').forEach(b => b.classList.toggle('active', b.dataset.date === activeDateFilter));
+        updateFilterActiveDot();
         renderReels();
     });
 });
@@ -98,17 +139,13 @@ function getDateRange(filter) {
     return null; // 'all'
 }
 
-function updateFilterButtons(cat) {
-    document.querySelectorAll('.filter-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.cat === cat);
-    });
-
-    // Also update sidebar active state
-    document.querySelectorAll('.sidebar-nav-item').forEach(el => {
-        el.classList.remove('active');
-        if (el.dataset.cat === cat) el.classList.add('active');
-    });
-}
+// ─── Sort ─────────────────────────────────────────
+window.toggleSort = function () {
+    sortOrder = sortOrder === 'newest' ? 'oldest' : 'newest';
+    document.getElementById('sortBtn').textContent =
+        sortOrder === 'newest' ? 'Sort: Latest ↓' : 'Sort: Oldest ↑';
+    renderReels();
+};
 
 // ─── Search ───────────────────────────────────────
 document.getElementById('searchInput').addEventListener('input', e => {
@@ -158,6 +195,10 @@ function updateStats() {
     // Categories
     document.getElementById('statCats').textContent = Object.keys(catCount).length;
 
+    // Starred count
+    const starredTotal = allReels.filter(r => r.is_starred).length;
+    document.getElementById('sidebarStarredCount').textContent = starredTotal;
+
     // Sidebar all count
     document.getElementById('sidebarAllCount').textContent = total;
     document.getElementById('sidebarAvatar').textContent =
@@ -188,7 +229,9 @@ function populateSidebarBuckets() {
             a.addEventListener('click', e => {
                 e.preventDefault();
                 activeCategory = cat;
-                updateFilterButtons(cat);
+                document.querySelectorAll('.f-pill').forEach(b => b.classList.toggle('active', b.dataset.cat === activeCategory));
+                updateSidebarActiveState(activeCategory);
+                updateFilterActiveDot();
                 closeSidebar();
                 renderReels();
             });
@@ -198,8 +241,7 @@ function populateSidebarBuckets() {
 
 // ─── Filter Counts on pills ───────────────────────
 function updateFilterCounts() {
-    const allCount = document.getElementById('fc-all');
-    if (allCount) allCount.textContent = allReels.length;
+    // We could wire this up to the new pills if desired
 }
 
 // ─── Render ───────────────────────────────────────
@@ -209,7 +251,12 @@ function renderReels() {
 
     let reels = [...allReels];
 
-    // Sort
+    // Filter by category / starred
+    if (activeCategory === 'starred') {
+        reels = reels.filter(r => r.is_starred);
+    } else if (activeCategory !== 'all' && activeCategory !== 'random') {
+        reels = reels.filter(r => r.category === activeCategory);
+    }
     reels.sort((a, b) => {
         const dateA = new Date(a.created_at || 0);
         const dateB = new Date(b.created_at || 0);
@@ -229,8 +276,17 @@ function renderReels() {
     if (activeCategory === 'random') {
         const idx = Math.floor(Math.random() * reels.length);
         reels = reels.length > 0 ? [reels[idx]] : [];
-    } else if (activeCategory !== 'all') {
+    } else if (activeCategory !== 'all' && activeCategory !== 'starred') {
         reels = reels.filter(r => r.category === activeCategory);
+    }
+
+    // Intent Filter
+    if (activeIntentFilter !== 'all') {
+        reels = reels.filter(r => {
+            if (!r.intent) return false;
+            // API might return "Educational", pill dataset is "educational"
+            return r.intent.toLowerCase() === activeIntentFilter.toLowerCase();
+        });
     }
 
     // Search
@@ -269,7 +325,7 @@ function createCard(reel, index) {
     if (reel.thumbnail_url) {
         thumbHtml = `
           <div class="card-thumb-wrap">
-            <img src="${esc(reel.thumbnail_url)}" alt="thumb" loading="lazy"
+            <img src="/api/proxy/image?url=${encodeURIComponent(reel.thumbnail_url)}" alt="thumb" loading="lazy" referrerpolicy="no-referrer"
               onerror="this.parentElement.innerHTML='<span class=card-thumb-emoji>${cfg.emoji}</span>'" />
             <span class="play-icon">▶</span>
           </div>`;
@@ -301,7 +357,7 @@ function createCard(reel, index) {
     const creator = reel.username ? `@${reel.username}` : '';
 
     card.innerHTML = `
-    ${thumbHtml}
+      ${thumbHtml}
     <div class="card-content">
       <div class="card-badges">
         <span class="cat-badge cat-badge-${cat}">${cfg.emoji} ${cat}</span>
@@ -316,12 +372,162 @@ function createCard(reel, index) {
     </div>
   `;
 
-    // Tap to open reel
-    const link = reel.canonical_url || reel.url;
-    if (link) card.addEventListener('click', () => window.open(link, '_blank', 'noopener'));
+    // Tap to open detailed modal
+    card.addEventListener('click', () => {
+        openReelModal(reel.id);
+    });
 
     return card;
 }
+
+// ─── Reel Details Modal ───────────────────────────
+window.openReelModal = function (id) {
+    const reel = allReels.find(r => r.id === id);
+    if (!reel) return;
+
+    // Normalise category
+    const rawCat = reel.category || 'Other';
+    const cat = Object.keys(CATS).find(k => k.toLowerCase() === rawCat.toLowerCase()) || 'Other';
+    const cfg = CATS[cat] || CATS.Other;
+
+    // Intent
+    const intentMap = { learn: '📖 Learn', try: '🏋️ Try', watch: '🎬 Watch', save: '💾 Save', apply: '✅ Apply' };
+    const intentLabel = reel.intent ? (intentMap[reel.intent.toLowerCase()] || `✨ ${reel.intent}`) : null;
+
+    // Date
+    const dateStr = reel.created_at ? relativeDate(reel.created_at) : '';
+
+    // Tags
+    let hashtags = [];
+    try { hashtags = typeof reel.hashtags === 'string' ? JSON.parse(reel.hashtags) : (reel.hashtags || []); }
+    catch { hashtags = []; }
+    const cleanTags = hashtags.filter(t => t && t.length < 20).slice(0, 5);
+
+    const overlay = document.getElementById('reelModalOverlay');
+
+    // Star icon in header
+    const starIcon = reel.is_starred ? '⭐' : '☆';
+    const header = document.querySelector('#reelModal .rm-header');
+    let starBtn = header.querySelector('.rm-star-btn');
+    if (!starBtn) {
+        starBtn = document.createElement('button');
+        starBtn.className = 'rm-star-btn';
+        header.insertBefore(starBtn, header.firstChild);
+    }
+    starBtn.textContent = starIcon;
+    starBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleStar(reel.id);
+        // Visual feedback immediately
+        const isNowStarred = !reel.is_starred;
+        starBtn.textContent = isNowStarred ? '⭐' : '☆';
+    };
+
+    // Inject Data
+    document.getElementById('rmCreator').textContent = reel.username ? `@${reel.username}` : 'Unknown Creator';
+
+    const thumb = document.getElementById('rmThumbnail');
+    if (reel.thumbnail_url) {
+        thumb.src = '/api/proxy/image?url=' + encodeURIComponent(reel.thumbnail_url);
+        thumb.referrerPolicy = "no-referrer";
+        thumb.style.display = 'block';
+    } else {
+        thumb.style.display = 'none';
+    }
+
+    // Badges
+    let badgesHtml = `<span class="cat-badge cat-badge-${cat}">${cfg.emoji} ${cat}</span>`;
+    if (intentLabel) badgesHtml += `<span class="intent-badge">${intentLabel}</span>`;
+    badgesHtml += `<span class="card-date-badge">${esc(dateStr)}</span>`;
+    document.getElementById('rmBadges').innerHTML = badgesHtml;
+
+    // Text Content
+    const rawCaption = reel.caption || '';
+    const isHashtagCaption = rawCaption.trim().startsWith('#') || (rawCaption.match(/#\w+/g) || []).length > rawCaption.trim().split(/\s+/).length * 0.6;
+    const title = reel.summary || (isHashtagCaption ? null : rawCaption) || 'No description available';
+
+    document.getElementById('rmTitle').textContent = title;
+    // Show original caption below if AI summary exists and caption isn't just hashtags
+    if (reel.summary && rawCaption && !isHashtagCaption && rawCaption !== reel.summary) {
+        document.getElementById('rmCaption').textContent = rawCaption;
+        document.getElementById('rmCaption').style.display = 'block';
+    } else {
+        document.getElementById('rmCaption').style.display = 'none';
+    }
+
+    // Tags
+    const tagHtml = cleanTags.map(t => `<span class="hashtag">${esc(t)}</span>`).join('');
+    document.getElementById('rmTags').innerHTML = tagHtml;
+
+    // CTA
+    const btn = document.getElementById('rmCtaBtn');
+    const link = reel.canonical_url || reel.url;
+    btn.onclick = () => {
+        if (link) window.open(link, '_blank', 'noopener');
+    };
+
+    // Show Modal
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+
+    // Handle Reminder
+    const reminderBtn = document.getElementById('rmSetReminderBtn');
+    const reminderInput = document.getElementById('rmReminderInput');
+    const statusEl = document.getElementById('rmReminderStatus');
+
+    // Reset UI
+    statusEl.classList.add('hidden');
+    statusEl.textContent = '';
+    reminderInput.value = '';
+
+    reminderBtn.onclick = async () => {
+        const value = reminderInput.value;
+        if (!value) {
+            showReminderStatus('Please select a date and time', 'error');
+            return;
+        }
+
+        try {
+            reminderBtn.disabled = true;
+            reminderBtn.textContent = 'Setting...';
+
+            const res = await fetch(`${API_URL}/${reel.id}/reminders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    remindAt: value,
+                    userPhone: reel.user_phone // Using the phone stored with the reel
+                })
+            });
+
+            const json = await res.json();
+            if (res.ok) {
+                showReminderStatus(`🔔 Reminder set for ${json.data.formattedTime}`, 'success');
+                // Auto-clear success message after 3s
+                setTimeout(() => statusEl.classList.add('hidden'), 5000);
+            } else {
+                showReminderStatus(json.error || 'Failed to set reminder', 'error');
+            }
+        } catch (err) {
+            showReminderStatus('Network error. Try again.', 'error');
+        } finally {
+            reminderBtn.disabled = false;
+            reminderBtn.textContent = 'Notify Me';
+        }
+    };
+
+    function showReminderStatus(msg, type) {
+        statusEl.textContent = msg;
+        statusEl.className = `rm-reminder-status ${type}`;
+        statusEl.classList.remove('hidden');
+    }
+};
+
+window.closeReelModal = function () {
+    const overlay = document.getElementById('reelModalOverlay');
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+};
 
 // ─── Helpers ──────────────────────────────────────
 function relativeDate(iso) {
@@ -357,6 +563,32 @@ function showError() {
     document.getElementById('feed').innerHTML = '';
     document.getElementById('errorState').classList.remove('hidden');
 }
+
+// ─── Interaction ──────────────────────────────────
+window.toggleStar = async function (id) {
+    try {
+        const res = await fetch(`${API_URL}/${id}/star`, { method: 'PATCH' });
+        if (!res.ok) throw new Error('Failed to star');
+
+        const json = await res.json();
+        const updated = json.data;
+
+        // Update local state
+        const idx = allReels.findIndex(r => r.id == id);
+        if (idx !== -1) {
+            allReels[idx].is_starred = updated.is_starred;
+        }
+
+        updateStats();
+        // Don't re-render everything instantly if we are just toggling in the modal
+        // but if we are in the feed, we probably want to See the star change.
+        // For simplicity, re-render feed:
+        renderReels();
+
+    } catch (err) {
+        console.error('Star error:', err);
+    }
+};
 
 function esc(str) {
     if (!str) return '';

@@ -109,6 +109,17 @@ export async function markReelFailed(shortcode) {
   );
 }
 
+// 4b️⃣ Reset reel to processing
+export async function resetReelToProcessing(shortcode) {
+  const query = `
+    UPDATE reels
+    SET status = 'processing'
+    WHERE shortcode = $1
+    RETURNING *;
+  `;
+  const { rows } = await pool.query(query, [shortcode]);
+  return rows[0];
+}
 
 // 5️⃣ Fetch all reels (dashboard)
 export async function getAllReels() {
@@ -118,7 +129,7 @@ export async function getAllReels() {
       caption, hashtags, username, full_name,
       thumbnail_url, video_url, duration_seconds,
       posted_at, summary, category, intent, status,
-      created_at
+      is_starred, created_at
     FROM reels
     ORDER BY created_at DESC;
   `;
@@ -198,4 +209,16 @@ export async function markReminderSent(reminderId, status = 'sent') {
     `UPDATE reminders SET status = $1 WHERE id = $2`,
     [status, reminderId]
   );
+}
+
+// 🔟 Toggle star status
+export async function toggleStar(id) {
+  const query = `
+    UPDATE reels
+    SET is_starred = NOT COALESCE(is_starred, FALSE)
+    WHERE id = $1
+    RETURNING id, is_starred;
+  `;
+  const { rows } = await pool.query(query, [id]);
+  return rows[0];
 }

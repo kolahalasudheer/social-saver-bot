@@ -7,6 +7,7 @@ import {
   updateReelMetadata,
   updateReelAI,
   markReelFailed,
+  resetReelToProcessing,
   createReminder,
   getRecentReelsByUser,
 } from "../services/reel.repository.js";
@@ -22,7 +23,13 @@ const sessions = new Map();
 const DASHBOARD_URL = process.env.DASHBOARD_URL || "http://localhost:3000";
 
 const SMART_REPLY_MENU = () =>
-  `🤔 *What would you like to do?*\n\nReply with a number:\n⏰ *1* — Set a reminder\n📋 *2* — My recent saves\n📊 *3* — Open dashboard`;
+  `🎬 *Reel Options*\n\nChoose an action below:`;
+
+const BUTTONS = {
+  REMINDER: "⏰ Set Reminder",
+  RECENT: "📋 Recent Saves",
+  DASHBOARD: "📊 Dashboard"
+};
 
 // ─── Main webhook handler ──────────────────────────────────────────────────
 export const handleWebhook = asyncHandler(async (req, res) => {
@@ -71,22 +78,26 @@ export const handleWebhook = asyncHandler(async (req, res) => {
     }
   }
 
-  // ── STEP B: User replied with 1 / 2 / 3 (quick action) ───────────────────
-  if (session && /^[123]$/.test(text)) {
-    if (text === "1") {
+  // ── STEP B: User replied with 1 / 2 / 3 OR Buttons ───────────────────
+  const isReminder = text === "1" || text.includes(BUTTONS.REMINDER);
+  const isRecent = text === "2" || text.includes(BUTTONS.RECENT);
+  const isDashboard = text === "3" || text.includes(BUTTONS.DASHBOARD);
+
+  if (session && (isReminder || isRecent || isDashboard)) {
+    if (isReminder) {
       // Set reminder — ask for time
       sessions.set(userPhone, { ...session, step: "awaiting_time" });
       await sendWhatsAppMessage({
         to: userPhone,
-        body: "⏰ When should I remind you?\n\nReply with a time like:\n• *tomorrow at 6pm*\n• *in 2 hours*\n• *friday at 9am*",
+        body: "⏰ *When should I remind you?*\n\nReply with a time like:\n• *tomorrow at 6pm*\n• *in 2 hours*\n• *friday at 9am*",
       });
-    } else if (text === "2") {
+    } else if (isRecent) {
       // Show recent saves
       const recents = await getRecentReelsByUser(userPhone, 3);
       if (recents.length === 0) {
         await sendWhatsAppMessage({
           to: userPhone,
-          body: "📭 No reels saved yet! Send an Instagram reel link to get started.",
+          body: "📭 *No reels saved yet!*\n\nSend an Instagram reel link to get started.",
         });
       } else {
         const lines = recents.map((r, i) => {
@@ -96,15 +107,15 @@ export const handleWebhook = asyncHandler(async (req, res) => {
         });
         await sendWhatsAppMessage({
           to: userPhone,
-          body: `📋 *Your last ${recents.length} saves:*\n\n${lines.join("\n\n")}\n\n📊 See all: ${DASHBOARD_URL}`,
+          body: `📋 *Your last ${recents.length} saves:*\n\n${lines.join("\n\n")}\n\n📊 *See all:* ${DASHBOARD_URL}`,
         });
       }
       sessions.delete(userPhone);
-    } else if (text === "3") {
+    } else if (isDashboard) {
       // Open dashboard
       await sendWhatsAppMessage({
         to: userPhone,
-        body: `📊 Open your dashboard here:\n${DASHBOARD_URL}`,
+        body: `📊 *Open your dashboard here:*\n${DASHBOARD_URL}`,
       });
       sessions.delete(userPhone);
     }
@@ -137,18 +148,50 @@ export const handleWebhook = asyncHandler(async (req, res) => {
   // Duplicate check
   const existingReel = await findReelByUserAndShortcode(userPhone, shortcode);
   if (existingReel) {
-    // Refresh session so they can still use quick replies on the existing reel
-    sessions.set(userPhone, {
-      reelId: existingReel.id,
-      shortcode,
-      url: existingReel.canonical_url || existingReel.url || link,
-      step: null,
-    });
-    await sendWhatsAppMessage({
-      to: userPhone,
-      body: `📌 This reel is already in your dashboard!\n\n${SMART_REPLY_MENU()}`,
-    });
-    return res.sendStatus(200);
+    if (existingReel.status === 'failed') {
+      // 🔄 Retrying a failed reel
+      await resetReelToProcessing(shortcode);
+
+      sessions.set(userPhone, {
+        reelId: existingReel.id,
+        shortcode,
+        url: existingReel.canonical_url || existingReel.url || link,
+        step: null,
+      });
+
+      await sendWhatsAppMessage({
+        to: userPhone,
+        body: `🔄 *Retrying the analysis for your reel...*\n\nPlease wait a moment.`,
+      });
+
+      // Restart pipeline
+      processReel(shortcode, link, userPhone);
+      return res.sendStatus(200);
+
+    } else if (existingReel.status === 'processing') {
+      // ⏳ Already processing
+      await sendWhatsAppMessage({
+        to: userPhone,
+        body: `⏳ *This reel is currently being analyzed!*\n\nPlease wait a moment for the results.`,
+      });
+      return res.sendStatus(200);
+
+    } else {
+      // ✅ Completed or metadata_extracted
+      sessions.set(userPhone, {
+        reelId: existingReel.id,
+        shortcode,
+        url: existingReel.canonical_url || existingReel.url || link,
+        step: null,
+      });
+      await sendWhatsAppMessage({
+        to: userPhone,
+        body: `✅ *Reel received and saved in your dashboard!* 🚀\n\n${SMART_REPLY_MENU()}\n1. ${BUTTONS.REMINDER}\n2. ${BUTTONS.RECENT}\n3. ${BUTTONS.DASHBOARD}`,
+        contentSid: process.env.TWILIO_CONTENT_SID_MENU,
+        contentVariables: { "1": BUTTONS.REMINDER, "2": BUTTONS.RECENT, "3": BUTTONS.DASHBOARD }
+      });
+      return res.sendStatus(200);
+    }
   }
 
   // 1️⃣ Create initial DB record (handling duplicates gracefully)
@@ -160,17 +203,42 @@ export const handleWebhook = asyncHandler(async (req, res) => {
     if (err.statusCode === 409 || err.code === '23505') {
       const existing = await findReelByUserAndShortcode(userPhone, shortcode) ||
         { id: null, canonical_url: link, url: link };
-      sessions.set(userPhone, {
-        reelId: existing.id,
-        shortcode,
-        url: existing.canonical_url || existing.url || link,
-        step: null,
-      });
-      await sendWhatsAppMessage({
-        to: userPhone,
-        body: `📌 This reel is already in your dashboard!\n\n${SMART_REPLY_MENU()}`,
-      });
-      return res.sendStatus(200);
+
+      if (existing.status === 'failed') {
+        await resetReelToProcessing(shortcode);
+        sessions.set(userPhone, {
+          reelId: existing.id,
+          shortcode,
+          url: existing.canonical_url || existing.url || link,
+          step: null,
+        });
+        await sendWhatsAppMessage({
+          to: userPhone,
+          body: `🔄 *Retrying the analysis for your reel...*\n\nPlease wait a moment.`,
+        });
+        processReel(shortcode, link, userPhone);
+        return res.sendStatus(200);
+      } else if (existing.status === 'processing') {
+        await sendWhatsAppMessage({
+          to: userPhone,
+          body: `⏳ *This reel is currently being analyzed!*\n\nPlease wait a moment for the results.`,
+        });
+        return res.sendStatus(200);
+      } else {
+        sessions.set(userPhone, {
+          reelId: existing.id,
+          shortcode,
+          url: existing.canonical_url || existing.url || link,
+          step: null,
+        });
+        await sendWhatsAppMessage({
+          to: userPhone,
+          body: `✅ *Reel received and saved in your dashboard!* 🚀\n\n${SMART_REPLY_MENU()}\n1. ${BUTTONS.REMINDER}\n2. ${BUTTONS.RECENT}\n3. ${BUTTONS.DASHBOARD}`,
+          contentSid: process.env.TWILIO_CONTENT_SID_MENU,
+          contentVariables: { "1": BUTTONS.REMINDER, "2": BUTTONS.RECENT, "3": BUTTONS.DASHBOARD }
+        });
+        return res.sendStatus(200);
+      }
     }
     // Other unexpected errors — still reply to user
     console.error('[Webhook] createReelRecord failed:', err.message);
@@ -210,19 +278,23 @@ export const handleWebhook = asyncHandler(async (req, res) => {
     }
   }
 
-  // 4️⃣ Send confirmation + smart reply menu
-  const fullReply = `${savedMsg}\n\n${SMART_REPLY_MENU()}`;
-  await sendWhatsAppMessage({ to: userPhone, body: fullReply });
+  // 4️⃣ Send simplified confirmation + menu
+  await sendWhatsAppMessage({
+    to: userPhone,
+    body: `✅ *Reel received and saved in your dashboard!* 🚀\n\n${SMART_REPLY_MENU()}\n1. ${BUTTONS.REMINDER}\n2. ${BUTTONS.RECENT}\n3. ${BUTTONS.DASHBOARD}`,
+    contentSid: process.env.TWILIO_CONTENT_SID_MENU,
+    contentVariables: { "1": BUTTONS.REMINDER, "2": BUTTONS.RECENT, "3": BUTTONS.DASHBOARD }
+  });
 
   // 5️⃣ Background processing (non-blocking)
-  processReel(shortcode, link);
+  processReel(shortcode, link, userPhone);
 
   res.sendStatus(200);
 });
 
 
 // ─── Background processor ─────────────────────────────────────────────────
-async function processReel(shortcode, reelUrl) {
+async function processReel(shortcode, reelUrl, userPhone) {
   try {
     console.log("[processReel] Starting Apify extraction for:", shortcode);
     const metadata = await extractInstagramMetadata(reelUrl);
@@ -234,13 +306,22 @@ async function processReel(shortcode, reelUrl) {
     const aiResult = await AIService.analyzeReel({
       caption: metadata.caption,
       hashtags: metadata.hashtags,
+      username: metadata.username,
+      fullName: metadata.full_name,
+      duration: metadata.duration_seconds
     });
 
     await updateReelAI(shortcode, aiResult);
     console.log("[processReel] ✅ Pipeline complete for:", shortcode);
-
   } catch (error) {
     console.error("[processReel] ❌ Failed for:", shortcode, error.message);
     await markReelFailed(shortcode);
+
+    if (userPhone) {
+      await sendWhatsAppMessage({
+        to: userPhone,
+        body: `⚠️ *Processing Failed*\n\nSomething went wrong while analyzing your reel. Please re-send the link to try again. 🔄`
+      });
+    }
   }
 }
