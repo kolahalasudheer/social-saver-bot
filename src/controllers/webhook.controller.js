@@ -49,11 +49,13 @@ export const handleWebhook = asyncHandler(async (req, res) => {
   const isRegistered = user?.is_registered;
 
   // Only trigger the onboarding question for COMPLETELY NEW users (not in DB)
-  // or if they explicitly send the "join" message
-  if (!user || text.toLowerCase().includes("join just-cat")) {
+  // or if they explicitly send the "join" message (any join keyword)
+  const isJoinMessage = /^join\s+\w+/i.test(text);
+
+  if (!user || isJoinMessage) {
 
     // 1. Handle Explicit Join for ALREADY registered users
-    if (isRegistered && text.toLowerCase().includes("join just-cat")) {
+    if (isRegistered && isJoinMessage) {
       await sendWhatsAppMessage({
         to: userPhone,
         body: `Welcome back to *Social Saver*! 🚀\n\n${SMART_REPLY_MENU()}\n1. ${BUTTONS.REMINDER}\n2. ${BUTTONS.RECENT}\n3. ${BUTTONS.DASHBOARD}`,
@@ -137,7 +139,6 @@ export const handleWebhook = asyncHandler(async (req, res) => {
       sessions.delete(userPhone);
       return res.sendStatus(200);
     } else {
-      // Still don't understand — give hint
       await sendWhatsAppMessage({
         to: userPhone,
         body: "🤔 I didn't understand that time.\n\nTry something like:\n• *tomorrow at 6pm*\n• *in 2 hours*\n• *friday at 9am*",
@@ -146,22 +147,52 @@ export const handleWebhook = asyncHandler(async (req, res) => {
     }
   }
 
-  // ── STEP B: User replied with 1 / 2 / 3 OR Buttons ───────────────────
+  // ── STEP A.5: User is selecting from 'Recent Saves' ───────────────────
+  if (session?.step === "awaiting_recent_selection" && /^[1-5]$/.test(text)) {
+    const index = parseInt(text) - 1;
+    const selectedReelId = session.recentIds?.[index];
+
+    if (selectedReelId) {
+      sessions.set(userPhone, { reelId: selectedReelId, step: "awaiting_time" });
+      await sendWhatsAppMessage({
+        to: userPhone,
+        body: "⏰ *When should I remind you about this save?*\n\nReply with a time like:\n• *tomorrow at 6pm*\n• *in 2 hours*",
+      });
+      return res.sendStatus(200);
+    }
+  }
+
+  // ── STEP B: Global Options (1 / 2 / 3) ───────────────────
+  // These work regardless of current session state
   const isReminder = text === "1" || text.includes(BUTTONS.REMINDER);
   const isRecent = text === "2" || text.includes(BUTTONS.RECENT);
   const isDashboard = text === "3" || text.includes(BUTTONS.DASHBOARD);
 
-  if (session && (isReminder || isRecent || isDashboard)) {
+  if (isReminder || isRecent || isDashboard) {
     if (isReminder) {
-      // Set reminder — ask for time
-      sessions.set(userPhone, { ...session, step: "awaiting_time" });
-      await sendWhatsAppMessage({
-        to: userPhone,
-        body: "⏰ *When should I remind you?*\n\nReply with a time like:\n• *tomorrow at 6pm*\n• *in 2 hours*\n• *friday at 9am*",
-      });
+      // If no session context, find the most recent reel
+      let targetReelId = session?.reelId;
+      if (!targetReelId) {
+        const lastRecents = await getRecentReelsByUser(userPhone, 1);
+        if (lastRecents.length > 0) {
+          targetReelId = lastRecents[0].id;
+        }
+      }
+
+      if (targetReelId) {
+        sessions.set(userPhone, { reelId: targetReelId, step: "awaiting_time" });
+        await sendWhatsAppMessage({
+          to: userPhone,
+          body: "⏰ *When should I remind you?*\n\nReply with a time like:\n• *tomorrow at 6pm*\n• *in 2 hours*",
+        });
+      } else {
+        await sendWhatsAppMessage({
+          to: userPhone,
+          body: "📭 *No reels saved yet!*\n\nSend an Instagram link first to set a reminder.",
+        });
+      }
     } else if (isRecent) {
-      // Show recent saves
-      const recents = await getRecentReelsByUser(userPhone, 3);
+      const recents = await getRecentReelsByUser(userPhone, 5);
       if (recents.length === 0) {
         await sendWhatsAppMessage({
           to: userPhone,
@@ -169,22 +200,27 @@ export const handleWebhook = asyncHandler(async (req, res) => {
         });
       } else {
         const lines = recents.map((r, i) => {
-          const cat = r.category ? `[${r.category}]` : "";
-          const desc = r.summary || r.caption?.slice(0, 60) || "No description";
-          return `${i + 1}. ${cat} ${desc.trim()}...`;
+          const link = r.canonical_url || r.url;
+          return `*${i + 1}️* — ${link}`;
         });
+
+        // Store IDs in session for retroactive selection
+        sessions.set(userPhone, {
+          step: "awaiting_recent_selection",
+          recentIds: recents.map(r => r.id)
+        });
+
         await sendWhatsAppMessage({
           to: userPhone,
-          body: `📋 *Your last ${recents.length} saves:*\n\n${lines.join("\n\n")}\n\n📊 *See all:* ${DASHBOARD_URL}`,
+          body: `📋 *Your last ${recents.length} saves:*\n\n${lines.join("\n\n")}\n\n💡 *Reply with the number (1-5) to set a reminder for any of these!*`,
         });
       }
-      sessions.delete(userPhone);
     } else if (isDashboard) {
-      // Open dashboard
       await sendWhatsAppMessage({
         to: userPhone,
         body: `📊 *Open your dashboard here:*\n${DASHBOARD_URL}`,
       });
+      // Optionally keep or clear session here. Clearing is safer to reset flow.
       sessions.delete(userPhone);
     }
     return res.sendStatus(200);

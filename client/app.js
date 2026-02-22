@@ -482,6 +482,12 @@ window.openReelModal = function (id) {
         if (link) window.open(link, '_blank', 'noopener');
     };
 
+    // Delete
+    const deleteBtn = document.getElementById('rmDeleteBtn');
+    deleteBtn.onclick = () => {
+        deleteReel(reel.id);
+    };
+
     // Show Modal
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
@@ -598,13 +604,30 @@ window.toggleStar = async function (id) {
         updateStats();
         // Don't re-render everything instantly if we are just toggling in the modal
         // but if we are in the feed, we probably want to See the star change.
-        // For simplicity, re-render feed:
+    } catch (err) {
+        console.error('Star failed', err);
+    }
+}
+
+window.deleteReel = async function (id) {
+    if (!confirm('Are you sure you want to delete this save? This cannot be undone.')) return;
+
+    try {
+        const res = await fetch(`${API_URL}/${id}?phone=${currentUserPhone}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Failed to delete');
+
+        // Update local state
+        allReels = allReels.filter(r => r.id != id);
+
+        closeReelModal();
         renderReels();
+        updateStats();
 
     } catch (err) {
-        console.error('Star error:', err);
+        alert('Delete failed. Please try again.');
+        console.error('Delete failed', err);
     }
-};
+}
 
 function esc(str) {
     if (!str) return '';

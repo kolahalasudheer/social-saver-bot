@@ -230,3 +230,13 @@ export async function toggleStar(id) {
   const { rows } = await pool.query(query, [id]);
   return rows[0];
 }
+// 11️⃣ Delete a reel
+export async function deleteReel(id) {
+  const query = `
+    DELETE FROM reels
+    WHERE id = $1
+    RETURNING *;
+  `;
+  const { rows } = await pool.query(query, [id]);
+  return rows[0];
+}

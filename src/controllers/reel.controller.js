@@ -1,6 +1,6 @@
 // Reel controller (ESM)
 import asyncHandler from '../middleware/asyncHandler.js';
-import { getAllReels, toggleStar } from '../services/reel.repository.js';
+import { getAllReels, toggleStar, deleteReel as dbDeleteReel } from '../services/reel.repository.js';
 
 export const getReels = asyncHandler(async (req, res) => {
   const { phone } = req.query;
@@ -24,7 +24,8 @@ export const updateReel = asyncHandler(async (req, res) => {
 });
 
 export const deleteReel = asyncHandler(async (req, res) => {
-  // TODO: Implement delete reel
+  const { id } = req.params;
+  await dbDeleteReel(id);
   res.json({ success: true });
 });
 

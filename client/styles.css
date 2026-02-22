@@ -1252,10 +1252,12 @@ body {
   padding-top: 16px;
   border-top: 1px solid var(--border);
   margin-top: 16px;
+  display: flex;
+  gap: 12px;
 }
 
 .rm-cta {
-  width: 100%;
+  flex: 1;
   padding: 16px;
   border-radius: var(--radius-pill);
   background: var(--accent);
@@ -1270,6 +1272,26 @@ body {
 }
 
 .rm-cta:active {
+  transform: scale(0.98);
+}
+
+.rm-delete-btn {
+  padding: 16px 24px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rm-delete-btn:hover {
+  background: #fef2f2;
+}
+
+.rm-delete-btn:active {
   transform: scale(0.98);
 }
 

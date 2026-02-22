@@ -54,8 +54,22 @@ async function sendWhatsAppMessage({ to, body, mediaUrl, contentSid, contentVari
     }
   }
 
-  const message = await client.messages.create(messageOptions);
-  return message;
+  try {
+    const message = await client.messages.create(messageOptions);
+    return message;
+  } catch (err) {
+    if (err.code === 63038 || err.status === 429) {
+      console.log("\n--- ⚠️ TWILIO SANDBOX LIMIT REACHED ---");
+      console.log(`[DEMO MOCK] Message to: ${to}`);
+      if (body) console.log(`[DEMO MOCK] Body: ${body}`);
+      if (contentSid) console.log(`[DEMO MOCK] Template: ${contentSid} | Vars: ${JSON.stringify(contentVariables)}`);
+      console.log("----------------------------------------\n");
+
+      // Return a fake success object so the calling code continues
+      return { sid: "mock_sid_for_demo", status: "sent_via_mock" };
+    }
+    throw err;
+  }
 }
 
 export { sendWhatsAppMessage };
