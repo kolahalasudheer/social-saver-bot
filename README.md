@@ -16,56 +16,32 @@
 
 ## 🏗️ System Architecture
 
-### Architecture Diagram
-
-```mermaid
-flowchart LR
-    User(["👤 User on WhatsApp"]) -->|"Sends Message"| Twilio["Twilio API"]
-    Twilio -->|"Webhook POST"| Express["⚙️ Express Server"]
-    Express -->|"Reply"| Twilio
-    Twilio -->|"Response"| User
-
-    subgraph bg["Background Processing"]
-        direction LR
-        Apify["🔍 Apify Scraper"] -->|"extracted_metadata"| Gemini["🤖 Gemini AI"]
-    end
-
-    Express -->|"Scrape Request"| Apify
-    Express -->|"AI Request"| Gemini
-    Gemini -->|"Processed Result"| Express
-    Express -->|"Store"| DB[("PostgreSQL")]
-    DB -->|"Fetch"| Dashboard["📊 Web Dashboard"]
-```
+<img width="1257" height="807" alt="Screenshot 2026-02-23 011038" src="https://github.com/user-attachments/assets/f0d8bb1b-8546-48df-9d02-427399edafb3" />
 
 ---
 
 ### Data Extraction & Processing Pipeline
 
-```mermaid
-flowchart TD
-    A["INSTAGRAM REEL URL"] --> B["APIFY API PARSING"]
+<img width="1651" height="776" alt="Screenshot 2026-02-23 012017" src="https://github.com/user-attachments/assets/a119238f-70c7-4ee9-917a-08eb03098862" />
 
-    B --> C1["Reel caption"]
-    B --> C2["Reel hashtags"]
-    B --> C3["Reel Thumbnail"]
-    B --> C4["Reel URL"]
-    B --> C5["Account Username"]
-
-    C1 & C2 & C3 & C4 & C5 --> D["JSON Output\nreel_caption · reel_hashtags\nreel_thumbnail · reel_url · reel_accountname"]
-
-    D --> G(["GEMINI API"])
-
-    P1["Webhook receives URL"] --> P2["Validate URL"]
-    P2 --> P3["Insert reel — status: processing"]
-    P3 --> P4["Trigger metadata extraction — async"]
-    P4 --> P5["Update reel with metadata"]
-    P5 --> P6["Trigger AI summary"]
-    P4 --> B
-    P6 --> G
-    G --> P7["Update reel — summary + category + intent"]
-    P7 --> P8["status: completed ✅"]
 ```
+```
+### WhatsApp → Database Connection
 
+```mermaid
+flowchart LR
+    WA(["💬 WhatsApp\n(User)"])
+    T["Twilio API"]
+    E["⚙️ Express Server\n(Node.js)"]
+    DB[("🗄️ PostgreSQL\n(Neon)")]
+
+    WA -->|"Sends Instagram Link"| T
+    T -->|"Webhook POST /api/webhook"| E
+    E -->|"INSERT reel record"| DB
+    DB -->|"Query user data"| E
+    E -->|"Reply via WhatsApp"| T
+    T -->|"Delivers response"| WA
+```
 
 ---
 
@@ -135,22 +111,140 @@ client/                       # Vanilla JS/HTML/CSS dashboard frontend
 
 ---
 
-## ⚙️ Setup
+# ⚙️ Setup
 
-### Environment Variables (`.env`)
-```env
-DATABASE_URL=postgresql://user:pass@host/db?sslmode=require
-TWILIO_ACCOUNT_SID=your_sid
-TWILIO_AUTH_TOKEN=your_token
-TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
-GEMINI_API_KEY=your_gemini_key
-APIFY_API_TOKEN=your_apify_key
-DASHBOARD_URL=http://localhost:3000
+Follow these steps to run Social Saver locally.
+
+---
+
+## 1️⃣ Prerequisites
+
+Ensure you have:
+
+- Node.js (v18 or higher)
+- PostgreSQL database (Neon recommended)
+- Twilio account (WhatsApp Sandbox enabled)
+- Apify account
+- Google Gemini API key
+- ngrok
+
+---
+
+## 2️⃣ Clone the Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/social-saver.git
+cd social-saver
 ```
 
-### Run Locally
+---
+
+## 3️⃣ Install Dependencies
+
 ```bash
 npm install
+```
+
+---
+
+## 4️⃣ Configure Environment Variables
+
+Create a `.env` file in the root directory:
+
+```bash
+touch .env
+```
+
+Add the following variables:
+
+```
+DATABASE_URL=your_postgresql_connection_string
+
+TWILIO_ACCOUNT_SID=your_twilio_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+
+GEMINI_API_KEY=your_gemini_api_key
+APIFY_API_TOKEN=your_apify_api_token
+
+DASHBOARD_URL=http://localhost:3000
+PORT=3000
+```
+
+⚠️ Never commit your `.env` file.
+
+---
+
+## 5️⃣ Set Up PostgreSQL Database
+
+Create a database and run the required schema for:
+
+- users
+- reels
+- otps
+
+Ensure your `DATABASE_URL` matches your database.
+
+---
+
+## 6️⃣ Start the Server
+
+```bash
 npm run dev
 ```
+
+You should see confirmation that:
+- Server is running
+- Database is connected
+
+---
+
+## 7️⃣ Expose Local Server to Twilio
+
+Twilio cannot access `localhost`. Use ngrok:
+
+```bash
+ngrok http 3000
+```
+
+Copy the generated HTTPS URL.
+
+---
+
+## 8️⃣ Configure Twilio Webhook
+
+In Twilio WhatsApp Sandbox settings:
+
+Set webhook URL to:
+
+```
+https://your-ngrok-url/api/webhook
+```
+
+Method: `POST`
+
+Save configuration.
+
+---
+
+## 9️⃣ Test the Application
+
+1. Send an Instagram Reel link to your WhatsApp sandbox number.
+2. The system will:
+   - Extract metadata
+   - Generate AI summary and category
+   - Store data in database
+3. Open your browser:
+
+```
+http://localhost:3000
+```
+
+Login via OTP and view saved reels.
+
+---
+- Confirm Apify token is valid.
+- Ensure Instagram link is public.
+
+---
 > For WhatsApp webhook: expose port `3000` via **ngrok** and set the Twilio Sandbox webhook URL to `https://<ngrok-url>/api/webhook`.
