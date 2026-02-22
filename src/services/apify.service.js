@@ -79,6 +79,7 @@ export async function extractInstagramMetadata(reelUrl) {
       video_url: reelData.videoUrl || null,
       duration_seconds: reelData.videoDuration || null,
       timestamp: reelData.timestamp || null,
+      isPost: reelUrl.includes('/p/')
     };
   } catch (error) {
     console.error(

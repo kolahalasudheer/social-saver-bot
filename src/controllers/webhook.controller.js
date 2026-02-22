@@ -14,6 +14,7 @@ import {
 import { extractInstagramMetadata } from "../services/apify.service.js";
 import { AIService } from "../services/ai.service.js";
 import { parseReminderFromMessage, formatReminderTime } from "../utils/dateParser.js";
+import { findUserByPhone, createUser, markUserRegistered } from "../services/user.repository.js";
 
 // ─── In-memory session store ───────────────────────────────────────────────
 // Tracks per-user state so we can handle "1/2/3" replies and multi-step flows
@@ -43,7 +44,74 @@ export const handleWebhook = asyncHandler(async (req, res) => {
   const text = Body.trim();
   const session = sessions.get(userPhone);
 
-  // ── STEP A: User is in 'awaiting_time' — they replied to the reminder prompt ──
+  // ── STEP 0: Gatekeeper Onboarding ───────────────────────────────────────
+  const user = await findUserByPhone(userPhone);
+  const isRegistered = user?.is_registered;
+
+  // Only trigger the onboarding question for COMPLETELY NEW users (not in DB)
+  // or if they explicitly send the "join" message
+  if (!user || text.toLowerCase().includes("join just-cat")) {
+
+    // 1. Handle Explicit Join for ALREADY registered users
+    if (isRegistered && text.toLowerCase().includes("join just-cat")) {
+      await sendWhatsAppMessage({
+        to: userPhone,
+        body: `Welcome back to *Social Saver*! 🚀\n\n${SMART_REPLY_MENU()}\n1. ${BUTTONS.REMINDER}\n2. ${BUTTONS.RECENT}\n3. ${BUTTONS.DASHBOARD}`,
+        contentSid: process.env.TWILIO_CONTENT_SID_MENU,
+        contentVariables: { "1": BUTTONS.REMINDER, "2": BUTTONS.RECENT, "3": BUTTONS.DASHBOARD }
+      });
+      return res.sendStatus(200);
+    }
+
+    // 2. Handle reply to onboarding question (1 or 2)
+    if (session?.step === "awaiting_registration") {
+      if (text === "1") {
+        // Option 1: Existing User
+        if (user) {
+          await markUserRegistered(userPhone);
+          await sendWhatsAppMessage({ to: userPhone, body: "Welcome back again! 🚀\n\nSend a reel link to save it or use the menu below." });
+          const pending = session.pendingBody;
+          sessions.delete(userPhone);
+          if (pending && extractInstagramLink(pending)) return handleWebhook(req, res);
+          return res.sendStatus(200);
+        } else {
+          await sendWhatsAppMessage({ to: userPhone, body: "❌ You are not a user of this bot yet.\n\nReply *2* to create your dashboard." });
+          return res.sendStatus(200);
+        }
+      } else if (text === "2") {
+        // Option 2: New User
+        if (isRegistered) {
+          await sendWhatsAppMessage({ to: userPhone, body: "⚠️ You are already an existing user of this bot.\n\nReply *1* to continue." });
+          return res.sendStatus(200);
+        } else {
+          await createUser(userPhone, true);
+          await sendWhatsAppMessage({ to: userPhone, body: "✅ Welcome! Creating your personal dashboard now...\n\nJust send any Instagram reel link to get started! 🎬" });
+          const pending = session.pendingBody;
+          sessions.delete(userPhone);
+          if (pending && extractInstagramLink(pending)) return handleWebhook(req, res);
+          return res.sendStatus(200);
+        }
+      }
+    }
+
+    // 3. Send onboarding question ONLY if they are NOT in our DB at all
+    if (!user) {
+      sessions.set(userPhone, { step: "awaiting_registration", pendingBody: Body });
+      await sendWhatsAppMessage({
+        to: userPhone,
+        body: "👋 *Welcome to Social Saver Bot!*\n\nAre you an existing user or a new user?\n\n1️⃣ — *Existing User*\n2️⃣ — *New User*"
+      });
+      return res.sendStatus(200);
+    }
+  }
+
+  // ── STEP 0.5: Silent Registration for existing DB users ────────────────
+  // If they exist in DB but aren't 'registered', mark them now without asking
+  if (user && !isRegistered) {
+    await markUserRegistered(userPhone);
+  }
+
+  // ── STEP A: User is in 'awaiting_time' ...
   if (session?.step === "awaiting_time") {
     const parsed = parseReminderFromMessage(`remind me ${text}`);
     if (parsed) {
@@ -308,7 +376,9 @@ async function processReel(shortcode, reelUrl, userPhone) {
       hashtags: metadata.hashtags,
       username: metadata.username,
       fullName: metadata.full_name,
-      duration: metadata.duration_seconds
+      duration: metadata.duration_seconds,
+      thumbnailUrl: metadata.thumbnail_url,
+      isPost: metadata.isPost
     });
 
     await updateReelAI(shortcode, aiResult);

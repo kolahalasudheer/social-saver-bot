@@ -5,6 +5,7 @@
 const API_URL = '/api/reels';
 
 let allReels = [];
+let currentUserPhone = localStorage.getItem('social_saver_phone') || null;
 let activeCategory = 'all';
 let activeIntentFilter = 'all';
 let activeDateFilter = 'all'; // 'all' | 'today' | 'yesterday' | 'week' | 'month'
@@ -13,13 +14,19 @@ let sortOrder = 'newest'; // 'newest' | 'oldest'
 
 // ─── Category config ──────────────────────────────
 const CATS = {
-    Education: { emoji: '📚', color: '#60a5fa', dot: '#3b82f6' },
-    Tech: { emoji: '💻', color: '#c4b5fd', dot: '#7C3AED' },
-    Fitness: { emoji: '💪', color: '#4ade80', dot: '#22c55e' },
+    Jobs: { emoji: '💼', color: '#60a5fa', dot: '#3b82f6' },
+    Coding: { emoji: '👨‍💻', color: '#60a5fa', dot: '#3b82f6' },
+    Gym: { emoji: '🏋️', color: '#4ade80', dot: '#22c55e' },
+    Cooking: { emoji: '🍳', color: '#fb923c', dot: '#f97316' },
+    Gaming: { emoji: '🎮', color: '#c4b5fd', dot: '#7C3AED' },
+    Tech: { emoji: '💻', color: '#22d3ee', dot: '#06b6d4' },
+    Finance: { emoji: '💰', color: '#fbbf24', dot: '#f59e0b' },
     Motivation: { emoji: '🔥', color: '#fbbf24', dot: '#f59e0b' },
-    Business: { emoji: '💼', color: '#22d3ee', dot: '#06b6d4' },
+    Business: { emoji: '💼', color: '#60a5fa', dot: '#3b82f6' },
+    Lifestyle: { emoji: '✨', color: '#f472b6', dot: '#ec4899' },
+    Travel: { emoji: '✈️', color: '#22d3ee', dot: '#06b6d4' },
     Entertainment: { emoji: '🎭', color: '#f472b6', dot: '#ec4899' },
-    Lifestyle: { emoji: '✨', color: '#fb923c', dot: '#f97316' },
+    Education: { emoji: '📚', color: '#60a5fa', dot: '#3b82f6' },
     Other: { emoji: '🌀', color: '#6b7280', dot: '#4b5563' },
 };
 
@@ -155,11 +162,16 @@ document.getElementById('searchInput').addEventListener('input', e => {
 
 // ─── Fetch ────────────────────────────────────────
 async function loadReels() {
+    if (!currentUserPhone) return;
+
     showSkeletons();
     hideStates();
 
     try {
-        const res = await fetch(API_URL);
+        const url = new URL(API_URL, window.location.origin);
+        url.searchParams.append('phone', currentUserPhone);
+
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         allReels = json.data || [];
@@ -201,8 +213,12 @@ function updateStats() {
 
     // Sidebar all count
     document.getElementById('sidebarAllCount').textContent = total;
-    document.getElementById('sidebarAvatar').textContent =
-        allReels[0]?.user_phone ? allReels[0].user_phone.slice(-4) : 'U';
+
+    // Set Profile Info
+    document.getElementById('sidebarPhone').textContent = currentUserPhone || 'WhatsApp User';
+    const avatarChar = currentUserPhone ? currentUserPhone.replace(/\D/g, '').slice(-1) : 'U';
+    document.getElementById('sidebarAvatar').textContent = avatarChar || 'U';
+    document.getElementById('headerAvatar').textContent = avatarChar || 'R';
 }
 
 // ─── Sidebar Buckets ──────────────────────────────
@@ -496,7 +512,7 @@ window.openReelModal = function (id) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     remindAt: value,
-                    userPhone: reel.user_phone // Using the phone stored with the reel
+                    userPhone: currentUserPhone
                 })
             });
 
@@ -567,7 +583,7 @@ function showError() {
 // ─── Interaction ──────────────────────────────────
 window.toggleStar = async function (id) {
     try {
-        const res = await fetch(`${API_URL}/${id}/star`, { method: 'PATCH' });
+        const res = await fetch(`${API_URL}/${id}/star?phone=${currentUserPhone}`, { method: 'PATCH' });
         if (!res.ok) throw new Error('Failed to star');
 
         const json = await res.json();
@@ -597,5 +613,109 @@ function esc(str) {
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ─── Authentication Logic ─────────────────────────
+function checkAuth() {
+    const overlay = document.getElementById('authModalOverlay');
+    if (!currentUserPhone) {
+        overlay.classList.remove('hidden');
+    } else {
+        overlay.classList.add('hidden');
+        loadReels();
+    }
+}
+
+async function requestOTP() {
+    const phoneInput = document.getElementById('authPhoneInput');
+    const phone = phoneInput.value.trim();
+    const errorEl = document.getElementById('authError');
+
+    if (!phone) {
+        showAuthError('Please enter your phone number');
+        return;
+    }
+
+    try {
+        toggleAuthLoading(true);
+        const res = await fetch('/api/auth/request-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone })
+        });
+        const json = await res.json();
+
+        if (res.ok) {
+            document.getElementById('authStepPhone').classList.add('hidden');
+            document.getElementById('authStepOtp').classList.remove('hidden');
+            errorEl.classList.add('hidden');
+        } else {
+            showAuthError(json.error || 'Failed to send OTP');
+        }
+    } catch (err) {
+        showAuthError('Connection error. Is the server running?');
+    } finally {
+        toggleAuthLoading(false);
+    }
+}
+
+async function verifyOTP() {
+    const phone = document.getElementById('authPhoneInput').value.trim();
+    const code = document.getElementById('authOtpInput').value.trim();
+
+    if (!code) {
+        showAuthError('Please enter the verification code');
+        return;
+    }
+
+    try {
+        toggleAuthLoading(true);
+        const res = await fetch('/api/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, code })
+        });
+        const json = await res.json();
+
+        if (res.ok) {
+            currentUserPhone = phone;
+            localStorage.setItem('social_saver_phone', phone);
+            checkAuth(); // This will hide modal and load reels
+        } else {
+            showAuthError(json.error || 'Invalid code');
+        }
+    } catch (err) {
+        showAuthError('Verification failed. Try again.');
+    } finally {
+        toggleAuthLoading(false);
+    }
+}
+
+function showAuthError(msg) {
+    const errorEl = document.getElementById('authError');
+    errorEl.textContent = msg;
+    errorEl.classList.remove('hidden');
+}
+
+function toggleAuthLoading(isLoading) {
+    const btns = document.querySelectorAll('.auth-btn');
+    btns.forEach(b => b.disabled = isLoading);
+}
+
+// Attach Event Listeners
+document.getElementById('authRequestOtpBtn').addEventListener('click', requestOTP);
+document.getElementById('authVerifyOtpBtn').addEventListener('click', verifyOTP);
+document.getElementById('authBackBtn').addEventListener('click', () => {
+    document.getElementById('authStepPhone').classList.remove('hidden');
+    document.getElementById('authStepOtp').classList.add('hidden');
+    document.getElementById('authError').classList.add('hidden');
+});
+
+window.logout = function () {
+    if (confirm('Are you sure you want to log out?')) {
+        localStorage.removeItem('social_saver_phone');
+        currentUserPhone = null;
+        window.location.reload();
+    }
+};
+
 // ─── Boot ─────────────────────────────────────────
-loadReels();
+checkAuth();

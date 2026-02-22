@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 import errorHandler from './middleware/error.middleware.js';
 
 // Route imports
-import { webhookRoutes, reelRoutes, healthRoutes, proxyRoutes } from './routes/index.js';
+import { webhookRoutes, reelRoutes, healthRoutes, proxyRoutes, authRoutes } from './routes/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +30,7 @@ app.use('/api/webhook', webhookRoutes);
 app.use('/api/reels', reelRoutes);
 app.use('/api/health', healthRoutes);
 app.use('/api/proxy', proxyRoutes);
+app.use('/api/auth', authRoutes);
 
 // 404 handler
 app.use((req, res) => {

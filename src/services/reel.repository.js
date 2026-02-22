@@ -121,9 +121,9 @@ export async function resetReelToProcessing(shortcode) {
   return rows[0];
 }
 
-// 5️⃣ Fetch all reels (dashboard)
-export async function getAllReels() {
-  const query = `
+// 5️⃣ Fetch all reels for a specific user (dashboard)
+export async function getAllReels(userPhone) {
+  let query = `
     SELECT
       id, shortcode, user_phone, url, canonical_url,
       caption, hashtags, username, full_name,
@@ -131,9 +131,17 @@ export async function getAllReels() {
       posted_at, summary, category, intent, status,
       is_starred, created_at
     FROM reels
-    ORDER BY created_at DESC;
   `;
-  const { rows } = await pool.query(query);
+
+  const values = [];
+  if (userPhone) {
+    query += ` WHERE user_phone = $1 `;
+    values.push(userPhone);
+  }
+
+  query += ` ORDER BY created_at DESC; `;
+
+  const { rows } = await pool.query(query, values);
   return rows;
 }
 

@@ -1,27 +1,46 @@
 // AI service for Gemini integration (ESM)
 import aiClient from '../config/ai.js';
+import axios from 'axios';
 
 class AIService {
 
-  static async analyzeReel({ caption, hashtags, username, fullName, duration }) {
+  static async analyzeReel({ caption, hashtags, username, fullName, duration, thumbnailUrl, isPost }) {
     try {
       const model = aiClient.getGenerativeModel({
         model: 'gemini-flash-latest'
       });
 
+      let imagePart = null;
+      if (isPost && thumbnailUrl) {
+        try {
+          const response = await axios.get(thumbnailUrl, { responseType: 'arraybuffer' });
+          const base64Image = Buffer.from(response.data).toString('base64');
+          imagePart = {
+            inlineData: {
+              data: base64Image,
+              mimeType: 'image/jpeg'
+            }
+          };
+        } catch (imgErr) {
+          console.warn("[AIService] Failed to fetch image for analysis, falling back to text-only:", imgErr.message);
+        }
+      }
+
       const prompt = `
-You are an expert social media and content analyst. Your job is to deeply understand an Instagram Reel based on its metadata.
+You are an expert social media and content analyst. Your job is to deeply understand an Instagram ${isPost ? 'post' : 'Reel'} based on its metadata${isPost ? ' and visual content' : ''}.
 
 CRITICAL INSTRUCTIONS:
-1. You may receive reels with VERY short captions (1-2 words) or NO hashtags at all. Do not panic.
-2. If the caption is extremely short or missing, rely heavily on the "Username" and "Full Name" to infer the type of content this creator likely publishes (e.g., a username like "tech_guru" implies Tech/Educational).
-3. Even with minimal text, deduce the core message, vibe, or value proposition by profiling the creator and their niche.
+1. You may receive content with VERY short captions (1-2 words) or NO hashtags at all.
+${isPost ? '2. If provided, use the ATTACHED IMAGE to understand the visual context, subject matter, and quality.' : '2. Use the provided text (Caption, Hashtags, Username) to understand the core message.'}
+3. Combine ${isPost ? 'visual information with ' : ''}text details (Caption, Hashtags, Username) to deduce the core message, category, and intent.
+4. If text is minimal${isPost ? ' and it is a post' : ''}, let the ${isPost ? 'visual content' : 'creator niche'} guide your summary.
 
 CREATOR CONTEXT:
 Username: @${username || "Unknown"}
 Full Name: ${fullName || "Unknown"}
 
-REEL DETAILS:
+SOURCE DETAILS:
+Type: ${isPost ? 'Post' : 'Reel/Video'}
 Duration: ${duration ? duration + " seconds" : "Unknown"}
 
 CAPTION:
@@ -33,15 +52,16 @@ ${hashtags && hashtags.length > 0 ? JSON.stringify(hashtags) : "None provided"}
 Based on the context above, extract the following information and return it strictly as a JSON object:
 
 {
-  "summary": "Write a highly descriptive and engaging summary (max 2 sentences) that captures the true essence, value proposition, or main takeaway of the reel.",
-  "category": "Choose the most accurate and specific fit. Examples: [Education, Comedy/Funny, Fitness, Tech, Motivation, Business, Lifestyle, Finance, Travel, Food, Fashion, Sports, Art/Design, Music, News, or provide a highly specific 1-2 word category]",
+  "summary": "Write a highly descriptive and engaging summary (max 2 sentences) that captures the true essence, value proposition, or main takeaway of the content.",
+  "category": "Choose the most accurate and specific fit using COMMON real-world terms. Examples: [Jobs, Coding, Gym, Cooking, Gaming, Tech, Finance, Motivation, Business, Lifestyle, Travel, Food, Fashion, Entertainment, news, or provide a highly specific 1-2 word category]",
   "intent": "Determine the creator's primary goal. Choose from: [Educational, Promotional, Informational, Personal, Entertainment, Inspirational, Satirical/Parody]"
 }
 
 Return ONLY the raw JSON object. Do not include markdown formatting like \`\`\`json.
 `;
 
-      const result = await model.generateContent(prompt);
+      const contents = imagePart ? [prompt, imagePart] : [prompt];
+      const result = await model.generateContent(contents);
       const response = await result.response;
       let text = await response.text();
 

@@ -3,7 +3,8 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import { getAllReels, toggleStar } from '../services/reel.repository.js';
 
 export const getReels = asyncHandler(async (req, res) => {
-  const reels = await getAllReels();
+  const { phone } = req.query;
+  const reels = await getAllReels(phone);
   res.json({ success: true, count: reels.length, data: reels });
 });
 
