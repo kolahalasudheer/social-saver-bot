@@ -1,11 +1,12 @@
 // AI service for Gemini integration (ESM)
-import aiClient from '../config/ai.js';
+import { getAIClient } from '../config/ai.js';
 import axios from 'axios';
 
 class AIService {
 
   static async analyzeReel({ caption, hashtags, username, fullName, duration, thumbnailUrl, isPost }) {
     try {
+      const aiClient = getAIClient();
       const model = aiClient.getGenerativeModel({
         model: 'gemini-flash-latest'
       });

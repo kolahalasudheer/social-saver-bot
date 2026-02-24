@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: social-saver-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_NUMBER
+        sync: false
+      - key: TWILIO_CONTENT_SID_MENU
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: APIFY_API_TOKEN
+        sync: false
+      - key: DASHBOARD_URL
+        sync: false
+

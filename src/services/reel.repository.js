@@ -148,7 +148,7 @@ export async function getAllReels(userPhone) {
 // 5b️⃣ Fetch recent reels for a specific user (WhatsApp bot context)
 export async function getRecentReelsByUser(userPhone, limit = 3) {
   const query = `
-    SELECT shortcode, category, summary, caption, canonical_url, url, created_at
+    SELECT id, shortcode, category, summary, caption, canonical_url, url, created_at
     FROM reels
     WHERE user_phone = $1
     ORDER BY created_at DESC

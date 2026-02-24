@@ -3,14 +3,17 @@ dotenv.config();
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const apiKey = process.env.GEMINI_API_KEY;
+let cachedClient = null;
 
-if (!apiKey) {
-  throw new Error("GEMINI_API_KEY is missing in environment variables");
+export function getAIClient() {
+  if (cachedClient) return cachedClient;
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is missing in environment variables");
+  }
+
+  console.log("Gemini Key Loaded: YES");
+  cachedClient = new GoogleGenerativeAI(apiKey);
+  return cachedClient;
 }
-
-console.log("Gemini Key Loaded:", apiKey ? "YES" : "NO");
-
-const aiClient = new GoogleGenerativeAI(apiKey);
-
-export default aiClient;
