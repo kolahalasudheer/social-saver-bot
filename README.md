@@ -67,7 +67,7 @@ No more forgotten saves. No more endless scrolling.
 
 | | |
 |---|---|
-| **GitHub** | [Insert GitHub Repository Link Here] |
+| **Access the bot directly here** | [http://wa.me/+14155238886?text=join%20airplane-fire] |
 | **Demo Video(with subtiles and watermark)** | https://drive.google.com/drive/folders/1FrqnepFq5g_aiSmIzmqSSTY_ZgBs247e?usp=sharing |
 | **Demo Video(without subtiles and watermark)** | https://drive.google.com/drive/folders/1IAdbcwAEPZaKF3Gq-jXMh294hX6Dw0Vz?usp=sharing |
 
